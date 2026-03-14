@@ -55,6 +55,7 @@ firebase-debug.log
 *.db3
 *.pgm
 *.yaml
+!config/*.yaml
 
 # ==============================
 # documentation
