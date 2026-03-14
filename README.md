@@ -94,16 +94,16 @@ Their responsibilities are:
 ### Occupancy-grid core
 
 - `grid_data.hpp`
-  Minimal cell-level statistics: hit count, visit count, and height.
+  Per-cell occupancy state: log-odds belief value, visit count, and minimum observed height. Also defines `LogOddsParams` for configuring the Bayesian update.
 
 - `subgrid.hpp` / `subgrid.cpp`
-  Sparse subgrid container with per-cell update logic.
+  Sparse subgrid container (16×16 cells) with log-odds Bayesian update logic.
 
 - `occupancy_map.hpp` / `occupancy_map.cpp`
   The main 2D sparse occupancy-map representation. Handles:
   - dynamic map resizing
-  - hit/miss updates
-  - conversion to final raster occupancy data
+  - log-odds hit/miss updates via SubGrid
+  - conversion to final raster occupancy data (thresholded by log-odds)
 
 - `offline_map_builder.hpp` / `offline_map_builder.cpp`
   The main algorithm layer. Handles:
@@ -357,7 +357,19 @@ The main tuning parameters are:
   Cell size in meters. `0.05` is appropriate for indoor maps; `0.1` is often enough for larger maps.
 
 - `projection.occupancy_ratio`
-  Threshold used when deciding whether a visited cell is occupied.
+  Threshold used when deciding whether a visited cell is occupied. Internally converted to a log-odds threshold via `log(r / (1 - r))`.
+
+- `projection.log_odds_hit`
+  Log-odds increment applied for each hit observation (positive value, default `0.85`).
+
+- `projection.log_odds_miss`
+  Log-odds increment applied for each miss observation (negative value, default `-0.4`).
+
+- `projection.log_odds_max`
+  Upper clamp bound for the log-odds value (default `3.5`, ~97% probability).
+
+- `projection.log_odds_min`
+  Lower clamp bound for the log-odds value (default `-2.0`, ~12% probability).
 
 ### YAML export
 
@@ -387,6 +399,10 @@ projection:
   usable_scan_range: 25.0
   grid_map_resolution: 0.05
   occupancy_ratio: 0.3
+  log_odds_hit: 0.85
+  log_odds_miss: -0.4
+  log_odds_max: 3.5
+  log_odds_min: -2.0
 ```
 
 Why:
@@ -501,7 +517,8 @@ Typical changes:
 - change obstacle height thresholds
 - change angle binning resolution
 - change free-space ray logic
-- change occupancy decision thresholding
+- tune log-odds parameters (`log_odds_hit`, `log_odds_miss`, `log_odds_max`, `log_odds_min`) to control how quickly cells become occupied or free
+- change the occupancy classification threshold (`occupancy_ratio`)
 
 ### If you want to make it subscribe to ROS topics
 
