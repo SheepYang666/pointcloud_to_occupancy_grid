@@ -71,7 +71,12 @@ bool LoadFrameSpecs(const std::string &keyframe_pcd_dir, const std::string &pose
       return false;
     }
 
-    indexed_pcds.emplace_back(std::stoul(stem), entry.path());
+    try {
+      indexed_pcds.emplace_back(std::stoul(stem), entry.path());
+    } catch (const std::out_of_range &) {
+      error_message = "pcd file stem is too large to parse: " + entry.path().string();
+      return false;
+    }
   }
 
   if (indexed_pcds.empty()) {

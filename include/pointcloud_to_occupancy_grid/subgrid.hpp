@@ -2,10 +2,9 @@
 
 #include "pointcloud_to_occupancy_grid/grid_data.hpp"
 
-#include <mutex>
-
 namespace pointcloud_to_occupancy_grid {
 
+// Not thread-safe. Acceptable for offline single-threaded use.
 class SubGrid {
  public:
   static constexpr int kSubGridBits = 4;
@@ -15,6 +14,8 @@ class SubGrid {
   SubGrid() = default;
   SubGrid(const SubGrid &other);
   SubGrid &operator=(const SubGrid &other);
+  SubGrid(SubGrid &&other) noexcept;
+  SubGrid &operator=(SubGrid &&other) noexcept;
   ~SubGrid();
 
   bool IsEmpty() const;
@@ -24,7 +25,6 @@ class SubGrid {
  private:
   void AllocateIfNeeded();
 
-  mutable std::mutex data_mutex_;
   GridData *grid_data_ = nullptr;
 };
 

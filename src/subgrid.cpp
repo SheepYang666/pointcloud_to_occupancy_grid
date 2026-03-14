@@ -5,7 +5,6 @@
 namespace pointcloud_to_occupancy_grid {
 
 SubGrid::SubGrid(const SubGrid &other) {
-  std::lock_guard<std::mutex> lock(other.data_mutex_);
   if (other.grid_data_ == nullptr) {
     return;
   }
@@ -20,43 +19,49 @@ SubGrid &SubGrid::operator=(const SubGrid &other) {
   }
 
   GridData *new_data = nullptr;
-  {
-    std::lock_guard<std::mutex> other_lock(other.data_mutex_);
-    if (other.grid_data_ != nullptr) {
-      new_data = new GridData[kCellCount];
-      std::memcpy(new_data, other.grid_data_, sizeof(GridData) * kCellCount);
-    }
+  if (other.grid_data_ != nullptr) {
+    new_data = new GridData[kCellCount];
+    std::memcpy(new_data, other.grid_data_, sizeof(GridData) * kCellCount);
   }
 
-  std::lock_guard<std::mutex> self_lock(data_mutex_);
   delete[] grid_data_;
   grid_data_ = new_data;
   return *this;
 }
 
+SubGrid::SubGrid(SubGrid &&other) noexcept : grid_data_(other.grid_data_) {
+  other.grid_data_ = nullptr;
+}
+
+SubGrid &SubGrid::operator=(SubGrid &&other) noexcept {
+  if (this != &other) {
+    delete[] grid_data_;
+    grid_data_ = other.grid_data_;
+    other.grid_data_ = nullptr;
+  }
+  return *this;
+}
+
 SubGrid::~SubGrid() {
-  std::lock_guard<std::mutex> lock(data_mutex_);
   delete[] grid_data_;
   grid_data_ = nullptr;
 }
 
 bool SubGrid::IsEmpty() const {
-  std::lock_guard<std::mutex> lock(data_mutex_);
   return grid_data_ == nullptr;
 }
 
 void SubGrid::SetGridHitPoint(bool hit, int sub_x, int sub_y, float height) {
-  std::lock_guard<std::mutex> lock(data_mutex_);
   AllocateIfNeeded();
 
   const int index = sub_x + sub_y * kWidth;
   GridData &cell = grid_data_[index];
 
   if (hit) {
+    cell.visit_count += 1;  // always count the visit
     if (height < cell.height) {
       cell.height = height;
-      cell.hit_count += 1;
-      cell.visit_count += 1;
+      cell.hit_count += 1;  // only count as confirmed hit at new minimum
     }
     return;
   }
@@ -73,7 +78,6 @@ void SubGrid::SetGridHitPoint(bool hit, int sub_x, int sub_y, float height) {
 }
 
 void SubGrid::GetHitAndVisit(int sub_x, int sub_y, unsigned int &hit_count, unsigned int &visit_count) const {
-  std::lock_guard<std::mutex> lock(data_mutex_);
   if (grid_data_ == nullptr) {
     hit_count = 0;
     visit_count = 0;

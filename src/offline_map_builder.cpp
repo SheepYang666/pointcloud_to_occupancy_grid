@@ -8,7 +8,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
-#include <map>
+#include <vector>
 
 namespace pointcloud_to_occupancy_grid {
 namespace {
@@ -73,7 +73,7 @@ void OfflineMapBuilder::ConvertFrameTo2DScan(const FrameData &frame) {
     floor_coeffs_ = Eigen::Vector4d(0.0, 0.0, 1.0, -options_.floor_height);
   }
 
-  std::vector<std::map<double, double>> rays(360);
+  std::vector<std::vector<std::pair<double, double>>> rays(360);
   std::vector<Eigen::Vector2d> angle_distance_height(360, Eigen::Vector2d::Zero());
   const Eigen::Isometry3d pose = frame.pose.AsIsometry();
 
@@ -92,18 +92,28 @@ void OfflineMapBuilder::ConvertFrameTo2DScan(const FrameData &frame) {
 
     if (distance_to_floor > options_.min_threshold_from_floor) {
       if (distance_to_floor < options_.max_threshold_from_floor) {
-        rays[angle_index].emplace(range, distance_to_floor);
+        rays[angle_index].emplace_back(range, distance_to_floor);
 
         const Eigen::Vector3d world_point = pose * local_point;
         map_.SetHitPoint(static_cast<float>(world_point.x()), static_cast<float>(world_point.y()), true,
                          static_cast<float>(distance_to_floor));
       }
     } else if (distance_to_floor > -options_.min_threshold_from_floor) {
-      rays[angle_index].emplace(range, distance_to_floor);
+      rays[angle_index].emplace_back(range, distance_to_floor);
     }
   }
 
-  const double floor_relative_height = floor_coeffs_[3];
+  // Sort each ray by range ascending so rbegin/rend iterates far-to-near.
+  for (auto &ray : rays) {
+    std::sort(ray.begin(), ray.end());
+  }
+
+  // floor z-height at sensor origin: solve ax+by+cz+d=0 at x=0,y=0 → z = -d/c
+  const double floor_z_at_origin = (std::abs(floor_coeffs_[2]) > 1e-6)
+      ? -floor_coeffs_[3] / floor_coeffs_[2]
+      : -options_.floor_height;
+  const double floor_relative_height = floor_z_at_origin;
+
   for (int angle = 0; angle < 360; ++angle) {
     if (rays[angle].size() < 2) {
       angle_distance_height[angle] =
@@ -114,7 +124,7 @@ void OfflineMapBuilder::ConvertFrameTo2DScan(const FrameData &frame) {
     for (auto it = rays[angle].rbegin(); it != rays[angle].rend(); ++it) {
       if (it->second < options_.min_threshold_from_floor) {
         angle_distance_height[angle] = Eigen::Vector2d(it->first, it->second);
-        continue;
+        break;  // farthest match wins when iterating far-to-near
       }
 
       auto next_it = it;

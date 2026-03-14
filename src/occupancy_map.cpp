@@ -38,7 +38,13 @@ bool OccupancyMap::EnsureBounds(float min_x, float min_y, float max_x, float max
     return true;
   }
 
-  return Resize(target_min_x, target_min_y, target_max_x, target_max_y);
+  // Pad by 20 subgrid cells in each expanding direction to amortize resize cost.
+  const float pad = grid_reso_ * 20.0f;
+  const float padded_min_x = target_min_x - (target_min_x < min_x_ ? pad : 0.0f);
+  const float padded_min_y = target_min_y - (target_min_y < min_y_ ? pad : 0.0f);
+  const float padded_max_x = target_max_x + (target_max_x > max_x_ ? pad : 0.0f);
+  const float padded_max_y = target_max_y + (target_max_y > max_y_ ? pad : 0.0f);
+  return Resize(padded_min_x, padded_min_y, padded_max_x, padded_max_y);
 }
 
 void OccupancyMap::SetHitPoint(float px, float py, bool hit, float height) {
@@ -76,9 +82,6 @@ void OccupancyMap::SetMissPoint(float point_x, float point_y, float laser_origin
     return;
   }
 
-  std::vector<Eigen::Vector2i> updated_points;
-  std::vector<float> heights;
-
   if (std::abs(diff_y) > std::abs(diff_x)) {
     const float slope = static_cast<float>(diff_x) / static_cast<float>(diff_y);
     const float delta_height = (lidar_height - height) / static_cast<float>(diff_y);
@@ -86,8 +89,8 @@ void OccupancyMap::SetMissPoint(float point_x, float point_y, float laser_origin
 
     for (int j = sign; j != diff_y; j += sign) {
       const int i = static_cast<int>(std::round(static_cast<float>(j) * slope));
-      updated_points.emplace_back(origin_x_index + i, origin_y_index + j);
-      heights.emplace_back(lidar_height - static_cast<float>(j) * delta_height);
+      UpdateCell(Eigen::Vector2i(origin_x_index + i, origin_y_index + j),
+                 false, lidar_height - static_cast<float>(j) * delta_height);
     }
   } else {
     const float slope = static_cast<float>(diff_y) / static_cast<float>(diff_x);
@@ -96,13 +99,9 @@ void OccupancyMap::SetMissPoint(float point_x, float point_y, float laser_origin
 
     for (int i = sign; i != diff_x; i += sign) {
       const int j = static_cast<int>(std::round(static_cast<float>(i) * slope));
-      updated_points.emplace_back(origin_x_index + i, origin_y_index + j);
-      heights.emplace_back(lidar_height - static_cast<float>(i) * delta_height);
+      UpdateCell(Eigen::Vector2i(origin_x_index + i, origin_y_index + j),
+                 false, lidar_height - static_cast<float>(i) * delta_height);
     }
-  }
-
-  for (std::size_t i = 0; i < updated_points.size(); ++i) {
-    UpdateCell(updated_points[i], false, heights[i]);
   }
 }
 
@@ -167,10 +166,14 @@ RasterMapData OccupancyMap::ToRasterMap() const {
 
           const int min_neighbor_x = std::max(0, x - 1);
           const int max_neighbor_x = std::min(static_cast<int>(map.width) - 1, x + 1);
+          const int min_neighbor_y = std::max(0, y - 1);
+          const int max_neighbor_y = std::min(static_cast<int>(map.height) - 1, y + 1);
           for (int neighbor_x = min_neighbor_x; neighbor_x <= max_neighbor_x; ++neighbor_x) {
-            const std::size_t neighbor_index = MapIndex(map.width, neighbor_x, y);
-            if (map.data[neighbor_index] < 0) {
-              map.data[neighbor_index] = 0;
+            for (int neighbor_y = min_neighbor_y; neighbor_y <= max_neighbor_y; ++neighbor_y) {
+              const std::size_t neighbor_index = MapIndex(map.width, neighbor_x, neighbor_y);
+              if (map.data[neighbor_index] < 0) {
+                map.data[neighbor_index] = 0;
+              }
             }
           }
         }
@@ -240,7 +243,7 @@ bool OccupancyMap::Resize(float min_x, float min_y, float max_x, float max_y) {
 
   for (int x = dx; x < dx_max; ++x) {
     for (int y = dy; y < dy_max; ++y) {
-      new_grids[x - min_grid_x][y - min_grid_y] = grids_[x][y];
+      new_grids[x - min_grid_x][y - min_grid_y] = std::move(grids_[x][y]);
     }
   }
 
