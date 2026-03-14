@@ -45,6 +45,7 @@ qtcreator-*
 *~
 *.swp
 *.tmp
+firebase-debug.log
 
 # ==============================
 # datasets / maps
