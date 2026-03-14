@@ -92,4 +92,5 @@ Note: C++ fallback defaults in `generate_pgm_from_keyframes.cpp` differ from `co
 - Coordinate frame: each PCD is in local LiDAR frame; each pose transforms to global frame; pose translation = LiDAR origin
 - Planar range means `sqrt(dx² + dy²)` (not 3D norm) — this is intentional for correct 2D projection
 - Floor z-height at sensor origin: `z = -d/c` from plane `ax+by+cz+d=0` (not `d` directly — only coincides for flat floors)
+- `SubGrid::SetGridHitPoint` hit branch: `hit_count` and `visit_count` intentionally only increment together when a new minimum height is found — this is NOT a bug. The ratio `hit_count/visit_count` measures height-confirmation consistency, not raw hit frequency. Unconditionally incrementing `visit_count` dilutes the ratio and causes obstacles to disappear.
 - Commit style: short imperative subject, optionally scoped (e.g. `projection: fix height band filter`)
