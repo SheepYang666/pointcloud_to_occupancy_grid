@@ -58,10 +58,10 @@ void SubGrid::SetGridHitPoint(bool hit, int sub_x, int sub_y, float height) {
   GridData &cell = grid_data_[index];
 
   if (hit) {
-    cell.visit_count += 1;  // always count the visit
     if (height < cell.height) {
       cell.height = height;
-      cell.hit_count += 1;  // only count as confirmed hit at new minimum
+      cell.hit_count += 1;
+      cell.visit_count += 1;
     }
     return;
   }
