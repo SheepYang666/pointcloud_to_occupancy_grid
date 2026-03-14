@@ -25,6 +25,10 @@ struct AppConfig {
   double usable_scan_range = 50.0;
   double grid_map_resolution = 0.2;
   double occupancy_ratio = 0.3;
+  double log_odds_hit = 0.85;
+  double log_odds_miss = -0.4;
+  double log_odds_max = 3.5;
+  double log_odds_min = -2.0;
   int negate = 0;
   double occupied_thresh = 0.65;
   double free_thresh = 0.25;
@@ -48,6 +52,10 @@ AppConfig LoadConfig(const rclcpp::Node::SharedPtr &node) {
   config.usable_scan_range = node->declare_parameter<double>("projection.usable_scan_range", 50.0);
   config.grid_map_resolution = node->declare_parameter<double>("projection.grid_map_resolution", 0.2);
   config.occupancy_ratio = node->declare_parameter<double>("projection.occupancy_ratio", 0.3);
+  config.log_odds_hit = node->declare_parameter<double>("projection.log_odds_hit", 0.85);
+  config.log_odds_miss = node->declare_parameter<double>("projection.log_odds_miss", -0.4);
+  config.log_odds_max = node->declare_parameter<double>("projection.log_odds_max", 3.5);
+  config.log_odds_min = node->declare_parameter<double>("projection.log_odds_min", -2.0);
   config.negate = node->declare_parameter<int>("map_yaml.negate", 0);
   config.occupied_thresh = node->declare_parameter<double>("map_yaml.occupied_thresh", 0.65);
   config.free_thresh = node->declare_parameter<double>("map_yaml.free_thresh", 0.25);
@@ -77,6 +85,26 @@ bool ValidateConfig(const AppConfig &config, std::string &error_message) {
   }
   if (config.occupancy_ratio <= 0.0 || config.occupancy_ratio >= 1.0) {
     error_message = "projection.occupancy_ratio must be between 0 and 1";
+    return false;
+  }
+  if (config.log_odds_hit <= 0.0) {
+    error_message = "projection.log_odds_hit must be positive";
+    return false;
+  }
+  if (config.log_odds_miss >= 0.0) {
+    error_message = "projection.log_odds_miss must be negative";
+    return false;
+  }
+  if (config.log_odds_max <= 0.0) {
+    error_message = "projection.log_odds_max must be positive";
+    return false;
+  }
+  if (config.log_odds_min >= 0.0) {
+    error_message = "projection.log_odds_min must be negative";
+    return false;
+  }
+  if (config.log_odds_min >= config.log_odds_max) {
+    error_message = "projection.log_odds_min must be less than projection.log_odds_max";
     return false;
   }
   if (config.occupied_thresh <= 0.0 || config.occupied_thresh >= 1.0 || config.free_thresh <= 0.0 ||
@@ -123,9 +151,13 @@ int main(int argc, char **argv) {
 
   pointcloud_to_occupancy_grid::OfflineMapBuilder builder(
       pointcloud_to_occupancy_grid::OfflineMapBuilder::Options{
-          config.estimate_floor,         config.lidar_height,         config.floor_height,
-          config.min_threshold_from_floor, config.max_threshold_from_floor, config.usable_scan_range,
-          config.grid_map_resolution,    config.occupancy_ratio,     10});
+          config.estimate_floor,           config.lidar_height,
+          config.floor_height,             config.min_threshold_from_floor,
+          config.max_threshold_from_floor,  config.usable_scan_range,
+          config.grid_map_resolution,      config.occupancy_ratio,
+          config.log_odds_hit,             config.log_odds_miss,
+          config.log_odds_max,             config.log_odds_min,
+          10});
 
   for (std::size_t i = 0; i < frame_specs.size(); ++i) {
     pointcloud_to_occupancy_grid::PointCloudPtr cloud;

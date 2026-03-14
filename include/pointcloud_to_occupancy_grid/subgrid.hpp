@@ -19,8 +19,9 @@ class SubGrid {
   ~SubGrid();
 
   bool IsEmpty() const;
-  void SetGridHitPoint(bool hit, int sub_x, int sub_y, float height);
-  void GetHitAndVisit(int sub_x, int sub_y, unsigned int &hit_count, unsigned int &visit_count) const;
+  void SetGridHitPoint(bool hit, int sub_x, int sub_y, float height, const LogOddsParams &params);
+  float GetLogOdds(int sub_x, int sub_y) const;
+  unsigned int GetVisitCount(int sub_x, int sub_y) const;
 
  private:
   void AllocateIfNeeded();

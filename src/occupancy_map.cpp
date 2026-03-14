@@ -149,17 +149,14 @@ RasterMapData OccupancyMap::ToRasterMap() const {
             continue;
           }
 
-          unsigned int hit_count = 0;
-          unsigned int visit_count = 0;
-          grids_[big_x][big_y].GetHitAndVisit(sub_x, sub_y, hit_count, visit_count);
-          const float occupancy = visit_count > 3 ? static_cast<float>(hit_count) / static_cast<float>(visit_count)
-                                                  : -1.0f;
-          if (occupancy < 0.0f) {
+          const float log_odds = grids_[big_x][big_y].GetLogOdds(sub_x, sub_y);
+          const unsigned int visit_count = grids_[big_x][big_y].GetVisitCount(sub_x, sub_y);
+          if (visit_count < 4) {
             continue;
           }
 
           const std::size_t index = MapIndex(map.width, x, y);
-          if (occupancy > options_.occupancy_ratio) {
+          if (log_odds > options_.occupancy_threshold) {
             map.data[index] = 100;
             continue;
           }
@@ -298,7 +295,7 @@ void OccupancyMap::UpdateCell(const Eigen::Vector2i &point_index, bool hit, floa
     return;
   }
 
-  grids_[grid_x][grid_y].SetGridHitPoint(hit, sub_x, sub_y, height);
+  grids_[grid_x][grid_y].SetGridHitPoint(hit, sub_x, sub_y, height, options_.log_odds_params);
 }
 
 float OccupancyMap::SnapMin(float value, float resolution) {

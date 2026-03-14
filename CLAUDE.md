@@ -45,7 +45,7 @@ Data flow: load PCD files + pose file → per-frame 3D→2D projection with heig
 |-------|--------|--------|------|
 | Types | `types.hpp` | — | `PoseData`, `FrameSpec`, `FrameData`, `RasterMapData` |
 | I/O | `dataset_io.hpp` | `dataset_io.cpp` | Load PCD directory + pose text file, match by index order |
-| Grid cell | `grid_data.hpp` | — | Per-cell hit/visit counts and height |
+| Grid cell | `grid_data.hpp` | — | Per-cell log-odds occupancy belief, visit count, and minimum height; also defines `LogOddsParams` |
 | Subgrid | `subgrid.hpp` | `subgrid.cpp` | 16×16 lazily-allocated cell block (not thread-safe; mutex removed for offline use) |
 | Map | `occupancy_map.hpp` | `occupancy_map.cpp` | Sparse 2D grid, dynamic resizing, hit/miss marking, rasterization |
 | Algorithm | `offline_map_builder.hpp` | `offline_map_builder.cpp` | Core pipeline: floor estimation, obstacle filtering, ray-cast free space |
@@ -76,8 +76,10 @@ All parameters live under `generate_pgm_from_keyframes.ros__parameters` in `conf
 - `projection.grid_map_resolution` — cell size in meters (default 0.05)
 - `projection.min_th_floor` / `max_th_floor` — obstacle height band above floor
 - `projection.usable_scan_range` — max planar range for projection
-- `projection.occupancy_ratio` — hit/visit ratio threshold for occupied classification
+- `projection.occupancy_ratio` — log-odds threshold for occupied classification (converted internally via `log(r/(1-r))`)
 - `projection.esti_floor` — enable per-frame RANSAC floor estimation (false = use fixed `floor_height`)
+- `projection.log_odds_hit` / `log_odds_miss` — per-observation log-odds increment for hit (+) and miss (−)
+- `projection.log_odds_max` / `log_odds_min` — clamp bounds to prevent overconfident beliefs
 
 Note: C++ fallback defaults in `generate_pgm_from_keyframes.cpp` differ from `config/default.yaml` for several parameters (e.g. `grid_map_resolution` 0.2 vs 0.05, `floor_height` -1.2 vs -0.15, `min_th_floor` 0.5 vs 0.05). Always run with `--params-file` or via the launch file.
 
@@ -92,5 +94,5 @@ Note: C++ fallback defaults in `generate_pgm_from_keyframes.cpp` differ from `co
 - Coordinate frame: each PCD is in local LiDAR frame; each pose transforms to global frame; pose translation = LiDAR origin
 - Planar range means `sqrt(dx² + dy²)` (not 3D norm) — this is intentional for correct 2D projection
 - Floor z-height at sensor origin: `z = -d/c` from plane `ax+by+cz+d=0` (not `d` directly — only coincides for flat floors)
-- `SubGrid::SetGridHitPoint` hit branch: `hit_count` and `visit_count` intentionally only increment together when a new minimum height is found — this is NOT a bug. The ratio `hit_count/visit_count` measures height-confirmation consistency, not raw hit frequency. Unconditionally incrementing `visit_count` dilutes the ratio and causes obstacles to disappear.
+- `SubGrid::SetGridHitPoint` uses a log-odds Bayesian update model: each hit adds `log_odds_hit` and each miss adds `log_odds_miss` (negative), clamped to `[log_odds_min, log_odds_max]`. Both hit and miss updates are unconditional (pure Bayesian). Minimum height is tracked separately. Cells with `visit_count < 4` are classified as unknown during rasterization to filter single-observation noise.
 - Commit style: short imperative subject, optionally scoped (e.g. `projection: fix height band filter`)

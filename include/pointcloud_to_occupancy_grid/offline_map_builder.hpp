@@ -20,6 +20,10 @@ class OfflineMapBuilder {
     double usable_scan_range = 50.0;
     double grid_map_resolution = 0.2;
     double occupancy_ratio = 0.3;
+    double log_odds_hit = 0.85;
+    double log_odds_miss = -0.4;
+    double log_odds_max = 3.5;
+    double log_odds_min = -2.0;
     std::size_t resize_sample_step = 10;
   };
 

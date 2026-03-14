@@ -13,7 +13,8 @@ class OccupancyMap {
  public:
   struct Options {
     float resolution = 0.1f;
-    float occupancy_ratio = 0.3f;
+    float occupancy_threshold = 0.0f;
+    LogOddsParams log_odds_params;
   };
 
   OccupancyMap();

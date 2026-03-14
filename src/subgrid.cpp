@@ -1,5 +1,6 @@
 #include "pointcloud_to_occupancy_grid/subgrid.hpp"
 
+#include <algorithm>
 #include <cstring>
 
 namespace pointcloud_to_occupancy_grid {
@@ -51,42 +52,32 @@ bool SubGrid::IsEmpty() const {
   return grid_data_ == nullptr;
 }
 
-void SubGrid::SetGridHitPoint(bool hit, int sub_x, int sub_y, float height) {
+void SubGrid::SetGridHitPoint(bool hit, int sub_x, int sub_y, float height, const LogOddsParams &params) {
   AllocateIfNeeded();
 
   const int index = sub_x + sub_y * kWidth;
   GridData &cell = grid_data_[index];
 
-  if (hit) {
-    if (height < cell.height) {
-      cell.height = height;
-      cell.hit_count += 1;
-      cell.visit_count += 1;
-    }
-    return;
-  }
-
-  if (cell.hit_count > 3) {
-    if (height < cell.height) {
-      cell.visit_count += 1;
-    }
-    return;
-  }
-
+  cell.log_odds = std::clamp(cell.log_odds + (hit ? params.log_odds_hit : params.log_odds_miss),
+                             params.log_odds_min, params.log_odds_max);
   cell.visit_count += 1;
-  cell.height = height;
+  if (height < cell.height) {
+    cell.height = height;
+  }
 }
 
-void SubGrid::GetHitAndVisit(int sub_x, int sub_y, unsigned int &hit_count, unsigned int &visit_count) const {
+float SubGrid::GetLogOdds(int sub_x, int sub_y) const {
   if (grid_data_ == nullptr) {
-    hit_count = 0;
-    visit_count = 0;
-    return;
+    return 0.0f;
   }
+  return grid_data_[sub_x + sub_y * kWidth].log_odds;
+}
 
-  const GridData &cell = grid_data_[sub_x + sub_y * kWidth];
-  hit_count = cell.hit_count;
-  visit_count = cell.visit_count;
+unsigned int SubGrid::GetVisitCount(int sub_x, int sub_y) const {
+  if (grid_data_ == nullptr) {
+    return 0;
+  }
+  return grid_data_[sub_x + sub_y * kWidth].visit_count;
 }
 
 void SubGrid::AllocateIfNeeded() {

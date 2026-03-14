@@ -4,7 +4,7 @@ generate_pgm_from_keyframes:
       keyframe_pcd_dir: /home/zry/Code/vina_slam_ws/data/map/floor3_global/keyFrames
       pose_file: /home/zry/Code/vina_slam_ws/data/map/floor3_global/keyFrames/alidarState.txt
     output:
-      directory: /home/zry/Code/vina_slam_ws/data/map/floor3_global/occupancy
+      directory: /home/zry/Code/vina_slam_ws/data/map/test/feature-log-odds-update/occupancy
       pgm_filename: map.pgm
       yaml_filename: map.yaml
     projection:
@@ -12,10 +12,14 @@ generate_pgm_from_keyframes:
       lidar_height: 0.15
       floor_height: -0.15
       min_th_floor: 0.05
-      max_th_floor: 2.5
+      max_th_floor: 2.0
       usable_scan_range: 50.0
       grid_map_resolution: 0.05
       occupancy_ratio: 0.3
+      log_odds_hit: 0.85
+      log_odds_miss: -0.4
+      log_odds_max: 3.5
+      log_odds_min: -2.0
     map_yaml:
       negate: 0
       occupied_thresh: 0.65

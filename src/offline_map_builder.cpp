@@ -22,8 +22,13 @@ OfflineMapBuilder::OfflineMapBuilder() : OfflineMapBuilder(Options{}) {}
 
 OfflineMapBuilder::OfflineMapBuilder(Options options)
     : options_(options),
-      map_(OccupancyMap::Options{static_cast<float>(options.grid_map_resolution),
-                                 static_cast<float>(options.occupancy_ratio)}) {}
+      map_(OccupancyMap::Options{
+          static_cast<float>(options.grid_map_resolution),
+          static_cast<float>(std::log(options.occupancy_ratio / (1.0 - options.occupancy_ratio))),
+          LogOddsParams{static_cast<float>(options.log_odds_hit),
+                        static_cast<float>(options.log_odds_miss),
+                        static_cast<float>(options.log_odds_max),
+                        static_cast<float>(options.log_odds_min)}}) {}
 
 bool OfflineMapBuilder::AddFrame(const FrameData &frame) {
   if (frame.cloud == nullptr || frame.cloud->empty()) {
