@@ -11,8 +11,8 @@ generate_pgm_from_keyframes:
       esti_floor: false
       lidar_height: 0.15
       floor_height: -0.15
-      min_th_floor: 0.05
-      max_th_floor: 2.0
+      min_th_floor: 0.15
+      max_th_floor: 1.8
       usable_scan_range: 50.0
       grid_map_resolution: 0.05
       occupancy_ratio: 0.3
