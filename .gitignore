@@ -62,3 +62,4 @@ firebase-debug.log
 # ==============================
 *.dox
 *.wikidoc
+*.cache

@@ -1,10 +1,10 @@
 generate_pgm_from_keyframes:
   ros__parameters:
     input:
-      keyframe_pcd_dir: /home/zry/Code/vina_slam_ws/data/map/floor3_global/keyFrames
-      pose_file: /home/zry/Code/vina_slam_ws/data/map/floor3_global/keyFrames/alidarState.txt
+      keyframe_pcd_dir: /home/zry/Code/vina_slam_ws/data/map/UGP_route2/keyFrames
+      pose_file: /home/zry/Code/vina_slam_ws/data/map/UGP_route2/keyFrames/alidarState.txt
     output:
-      directory: /home/zry/Code/vina_slam_ws/data/map/test/feature-log-odds-update/occupancy
+      directory: /home/zry/Code/vina_slam_ws/data/map/test/UGP_route2/occupancy
       pgm_filename: map.pgm
       yaml_filename: map.yaml
     projection:
